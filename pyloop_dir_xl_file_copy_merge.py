@@ -1,49 +1,44 @@
 import os
-import openpyxl
+from openpyxl import load_workbook, Workbook
 
-# Function to check if a file name contains any of the specified keywords
-def contains_keywords(filename, keywords):
-    for keyword in keywords:
-        if keyword.lower() in filename.lower():
-            return True
-    return False
+# Function to copy sheet to new workbook
+def copy_sheet(source_sheet, destination_workbook, new_sheet_name):
+    new_sheet = destination_workbook.create_sheet(title=new_sheet_name)
+    for row in source_sheet.iter_rows():
+        for cell in row:
+            new_sheet[cell.coordinate].value = cell.value
 
-# Directory containing Excel files
-directory = '/path/to/your/directory'
+# Prompt to select sheet
+def select_sheet(sheet_names):
+    print("Available sheets:")
+    for i, sheet_name in enumerate(sheet_names):
+        print(f"{i + 1}. {sheet_name}")
+    selection = input("Enter the number of the sheet you want to select: ")
+    try:
+        selection = int(selection)
+        if 1 <= selection <= len(sheet_names):
+            return sheet_names[selection - 1]
+        else:
+            print("Invalid selection. Please enter a valid sheet number.")
+            return select_sheet(sheet_names)
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        return select_sheet(sheet_names)
 
-# Keywords to search for in file names
-keywords = ["cam", "san diego", "uk"]
+# Main function
+def main():
+    merged_workbook = Workbook()
+    directories = ['directory1', 'directory2', 'directory3', 'directory4']
+    for directory in directories:
+        for file_name in os.listdir(directory):
+            if file_name.endswith('.xlsx') and ("cam" in file_name.lower() or "san diego" in file_name.lower() or "uk" in file_name.lower()):
+                file_path = os.path.join(directory, file_name)
+                source_workbook = load_workbook(file_path)
+                for sheet_name in source_workbook.sheetnames:
+                    selected_sheet = select_sheet(source_workbook.sheetnames)
+                    copy_sheet(source_workbook[sheet_name], merged_workbook, file_name[:20])
+                    break  # Exit loop after processing one sheet
+    merged_workbook.save("merged_data.xlsx")
 
-# Iterate through files in the directory
-for filename in os.listdir(directory):
-    if filename.endswith('.xlsx') and contains_keywords(filename, keywords):
-        # Load the Excel file
-        wb = openpyxl.load_workbook(os.path.join(directory, filename))
-        
-        # Prompt user to select a sheet
-        sheet_name = input(f"Select a sheet from {filename}: ")
-        
-        # Check if the selected sheet exists
-        if sheet_name in wb.sheetnames:
-            # Create a new workbook for the merged data
-            merged_wb = openpyxl.Workbook()
-            merged_ws = merged_wb.active
-            
-            # Copy data from selected sheet to merged workbook
-            selected_ws = wb[sheet_name]
-            for row in selected_ws.iter_rows():
-                merged_ws.append([cell.value for cell in row])
-            
-            # Name the new sheet after the first 10 characters of the original file name
-            new_sheet_name = filename[:10]
-            merged_ws.title = new_sheet_name
-            
-            # Save the merged data to a new file
-            merged_filename = "merged_data.xlsx"
-            merged_wb.save(merged_filename)
-            
-            print(f"Sheet '{sheet_name}' from '{filename}' copied to '{merged_filename}' as '{new_sheet_name}'")
-
-# Save the merged data file
-merged_wb.save(merged_filename)
-print("Merged data saved.")
+if __name__ == "__main__":
+    main()
